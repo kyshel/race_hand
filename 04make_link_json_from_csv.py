@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from urllib.parse import urlparse
 
-df = pd.read_csv("2_testa_user.csv")
+df = pd.read_csv("1_testa_user.csv")
 print(df)
 
 

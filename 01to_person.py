@@ -253,13 +253,13 @@ def check_overlap_by_id(crop_info,crops_list):
 
     return is_overlap, overlaps_list
 
-def check_overlap_man(crop_info,crops_list):
+def check_overlap_man(crop_info,crops_list,man_list):
     found = 0
     overlaps_list = []
     is_overlap = False
 
     for crop_b in crops_list:
-        if crop_b['category_id'] in [2] : # is_person: 2
+        if crop_b['category_id'] in man_list : # is_person: 2
             # boxA = [crop_info["bbox"],crop_info["bbox"],crop_info["bbox"],crop_info["bbox"]]
             # boxB = [crop_b["bbox"],crop_b["bbox"],crop_b["bbox"],crop_b["bbox"]]
             if checkIntersection(crop_info["bbox"],crop_b["bbox"]):
@@ -276,15 +276,60 @@ def check_overlap_man(crop_info,crops_list):
     return is_overlap, overlaps_list
 
 
-def wear2person(stacked_dict):
+# def wear2person(stacked_dict):
+#     # to_person, max_area
+#     print('[]object to_person...')
+#     for key, crops_list in stacked_dict.items():
+#         # print(key)
+#         for i, crop_info in enumerate(crops_list):
+#             # print(crop_info)
+#             if crop_info["category_id"] in [0 , 1, 3]:  # no_person: 0guard 1yes_wear, 3no_wear
+#                 is_overlap, overlaps_list = check_overlap_man(crop_info, crops_list)
+#
+#                 # select final person by IOU
+#                 if is_overlap:
+#                     # print("cls_id,score,box: ", crop_info["category_id"], crop_info['score'], crop_info['bbox'],
+#                     #       [(crop['category_id'], crop['score'], crop['bbox']) for crop in overlaps_list])
+#
+#                     crop_dict1 = stacked_dict[key][i]
+#
+#                     bb1 = crop_dict1['bbox']
+#
+#                     max_area = 0
+#                     max_iou = 0
+#                     max_score = 0
+#                     max_bbox = [1, 2, 3, 4]
+#                     for crop_dict2 in overlaps_list:
+#                         bb2 = crop_dict2['bbox']
+#
+#                         iou, area = get_iou(bb1, bb2)
+#                         score = crop_dict2['score']
+#                         # print("iou_ratio, area: ",iou,area)
+#
+#                         if area < max_area:  # there is optimize room here
+#                             pass
+#                         else:
+#                             max_area = area
+#                             max_bbox = bb2
+#
+#                     stacked_dict[key][i]['bbox'] = max_bbox
+#                     # print("selected max_bbox",max_bbox)
+#
+#                 else:  # remove not overlapped
+#                     print('this object has no person overlapped, will remove this object!')
+#                     stacked_dict[key].remove(crop_info)
+#     return  stacked_dict
+
+
+def obj2man(stacked_dict,obj_list,man_list):
     # to_person, max_area
     print('[]object to_person...')
     for key, crops_list in stacked_dict.items():
         # print(key)
         for i, crop_info in enumerate(crops_list):
             # print(crop_info)
-            if crop_info["category_id"] in [0 , 1, 3]:  # no_person: 0guard 1yes_wear, 3no_wear
-                is_overlap, overlaps_list = check_overlap_man(crop_info, crops_list)
+            if crop_info["category_id"] in obj_list:  # no_person: 1,2,3,4
+                is_overlap, overlaps_list = check_overlap_man(crop_info, crops_list,man_list)
 
                 # select final person by IOU
                 if is_overlap:
@@ -319,6 +364,7 @@ def wear2person(stacked_dict):
                     print('this object has no person overlapped, will remove this object!')
                     stacked_dict[key].remove(crop_info)
     return  stacked_dict
+
 
 def rebuild_coco_from_stacked_dict(stacked_dict):
     # rebuild coco_format from stacked list
@@ -388,16 +434,7 @@ def make_json(fp_json,final_list):
     # steps
     #  guard > man, yes > man, no > man
 
-    # match id
-    # src 0guard 1yes 2man 3no
-    # dst 0man 1guard 2yes 3no
-    for i, ele in enumerate(yolo_list):
-        if ele['category_id'] == 0:
-            yolo_list[i]['category_id'] = 1
-        elif ele['category_id'] == 1:
-            yolo_list[i]['category_id'] = 2
-        elif ele['category_id'] == 2:
-            yolo_list[i]['category_id'] = 0
+
 
     fp_out = fn_json_no_ext + '_4_submit.json'
 
@@ -418,10 +455,11 @@ if __name__ == '__main__':
     crops_list = read_json(fp_json)
     crops_list = cut_bigger(crops_list,threshold=0.2) # rm <= 0.2
     stacked_dict = get_stacked_dict(crops_list)
-    # stacked_dict = remove_overlapped(stacked_dict,overlapped_id=0) # iou 0guard
-    # stacked_dict = remove_overlapped(stacked_dict, overlapped_id=1)  # iou 1yes
-    # stacked_dict = remove_overlapped(stacked_dict, overlapped_id=3)  # iou 3no
-    stacked_dict = wear2person(stacked_dict) # wear2person
+    # stacked_dict = remove_overlapped(stacked_dict,overlapped_id=0) # iou
+    # stacked_dict = remove_overlapped(stacked_dict, overlapped_id=1)  # iou
+    # stacked_dict = remove_overlapped(stacked_dict, overlapped_id=3)  # iou
+    # stacked_dict = wear2person(stacked_dict) # wear2person
+    stacked_dict = obj2man(stacked_dict,[1,2,3,4],[0])
     crops_list = rebuild_coco_from_stacked_dict(stacked_dict)
     make_json(fp_json,crops_list)
 
